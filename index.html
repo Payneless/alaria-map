@@ -447,9 +447,28 @@
             measurementId: "G-MWG8H88QG7"
         };
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        // Initialize Firebase when available
+        let db = null;
+
+        function initializeFirebase() {
+            if (typeof firebase === 'undefined') {
+                console.error('Firebase not loaded yet, retrying...');
+                setTimeout(initializeFirebase, 100);
+                return;
+            }
+
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                db = firebase.firestore();
+                console.log('Firebase initialized successfully');
+            } catch (error) {
+                console.error('Firebase initialization error:', error);
+            }
+        }
+
+        initializeFirebase();
 
         // Multi-user globals
         let playerName = null;
@@ -828,6 +847,10 @@
 
         // Register player in the session
         async function registerPlayerPresence() {
+            if (!db) {
+                console.error('Firebase not initialized yet');
+                return;
+            }
             try {
                 const playerDoc = db.collection('alaria-map')
                     .doc(sessionId)
@@ -857,6 +880,9 @@
 
         // Unregister player when leaving
         async function unregisterPlayerPresence() {
+            if (!db) {
+                return; // Firebase not ready, skip cleanup
+            }
             try {
                 if (playerId && sessionId) {
                     await db.collection('alaria-map')
@@ -872,6 +898,10 @@
 
         // Set up real-time listener for annotations
         function setupAnnotationListener() {
+            if (!db) {
+                console.error('Firebase not initialized');
+                return;
+            }
             unsubscribeAnnotations = db.collection('alaria-map')
                 .doc(sessionId)
                 .collection('annotations')
@@ -896,6 +926,10 @@
 
         // Set up listener for active players
         function setupPlayerPresenceListener() {
+            if (!db) {
+                console.error('Firebase not initialized');
+                return;
+            }
             unsubscribePlayers = db.collection('alaria-map')
                 .doc(sessionId)
                 .collection('players')
@@ -989,6 +1023,10 @@
 
         // Save annotation to Firestore
         async function saveAnnotationToFirestore(fabricObject) {
+            if (!db) {
+                console.warn('Firebase not ready, skipping save');
+                return;
+            }
             try {
                 if (!fabricObject._annotationId) {
                     fabricObject._annotationId = 'ann_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -1096,8 +1134,16 @@
             updateAnnotationsList();
         });
 
-        // Initialize the app
-        initializePlayerModal();
+        // Initialize the app when Firebase is ready
+        function startApp() {
+            if (db === null) {
+                setTimeout(startApp, 100);
+                return;
+            }
+            initializePlayerModal();
+        }
+
+        startApp();
     </script>
 </body>
 </html>
