@@ -137,6 +137,16 @@
             cursor: crosshair;
         }
 
+        #annotation-canvas.disabled {
+            pointer-events: none;
+            opacity: 0.3;
+        }
+
+        #mode-toggle.nav-mode {
+            background: linear-gradient(135deg, #2d5f3f 0%, #1a3f29 100%);
+            border-color: #4fb373;
+        }
+
         #sidebar {
             width: 280px;
             background: linear-gradient(135deg, #1a1429 0%, #2d1f3f 100%);
@@ -251,7 +261,11 @@
 <body>
     <div id="toolbar">
         <div class="toolbar-group">
-            <span class="toolbar-label">Tools</span>
+            <span class="toolbar-label">Mode</span>
+            <button id="mode-toggle" class="icon-btn active" title="Toggle Drawing/Navigation Mode">✏️ Draw</button>
+        </div>
+
+        <div class="toolbar-group">
             <button id="tool-pen" class="icon-btn active" title="Pen">✏️</button>
             <button id="tool-line" class="icon-btn" title="Line">📏</button>
             <button id="tool-rect" class="icon-btn" title="Rectangle">▭</button>
@@ -342,6 +356,28 @@
         let currentTool = 'pen';
         let history = [];
         let selectionMode = false;
+        let drawMode = true; // Start in draw mode
+
+        // Mode toggle
+        const modeToggle = document.getElementById('mode-toggle');
+        modeToggle.addEventListener('click', () => {
+            drawMode = !drawMode;
+            const canvasEl = document.getElementById('annotation-canvas');
+            
+            if (drawMode) {
+                // Draw mode
+                modeToggle.textContent = '✏️ Draw';
+                modeToggle.classList.remove('nav-mode');
+                canvasEl.classList.remove('disabled');
+                statusDiv.textContent = 'Draw mode active';
+            } else {
+                // Navigation mode
+                modeToggle.textContent = '🗺️ Navigate';
+                modeToggle.classList.add('nav-mode');
+                canvasEl.classList.add('disabled');
+                statusDiv.textContent = 'Navigation mode - pan the map';
+            }
+        });
 
         // Sidebar toggle
         const sidebarToggle = document.getElementById('sidebar-toggle');
@@ -504,6 +540,7 @@
 
         // Canvas mouse events for shapes
         canvas.addEventListener('mousedown', (e) => {
+            if (!drawMode) return; // Ignore if not in draw mode
             if (currentTool === 'pen') return;
             if (currentTool === 'text') {
                 handleTextInput(e);
@@ -518,6 +555,7 @@
         });
 
         canvas.addEventListener('mousemove', (e) => {
+            if (!drawMode) return; // Ignore if not in draw mode
             if (!isDrawing || currentTool === 'pen' || currentTool === 'text') return;
 
             const rect = canvas.getBoundingClientRect();
