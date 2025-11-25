@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alaria Map</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', 'Garamond', serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a3e 100%);
+            color: #d4af37;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #toolbar {
+            background: linear-gradient(to right, #1a1429 0%, #2d1f3f 100%);
+            border-bottom: 3px solid #8b7355;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+            flex-wrap: wrap;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-right: 2px solid #8b7355;
+            padding-right: 15px;
+        }
+
+        .toolbar-group:last-child {
+            border-right: none;
+        }
+
+        .toolbar-label {
+            font-size: 11px;
+            color: #9d8764;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: bold;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #8b7355;
+            background: linear-gradient(135deg, #2d1f3f 0%, #1a1429 100%);
+            color: #d4af37;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .icon-btn:hover {
+            border-color: #d4af37;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .icon-btn.active {
+            background: linear-gradient(135deg, #d4af37 0%, #b8960f 100%);
+            color: #1a1429;
+            border-color: #d4af37;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+        }
+
+        .icon-btn.danger {
+            border-color: #d41f1f;
+        }
+
+        .icon-btn.danger:hover {
+            border-color: #ff4444;
+            box-shadow: 0 0 10px rgba(212, 31, 31, 0.3);
+        }
+
+        input[type="color"].toolbar-color {
+            width: 45px;
+            height: 40px;
+            border: 2px solid #8b7355;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        input[type="color"].toolbar-color:hover {
+            border-color: #d4af37;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+
+        #map-wrapper {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #map-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background-color: #0a0a0a;
+        }
+
+        #sidebar {
+            width: 280px;
+            background: linear-gradient(135deg, #1a1429 0%, #2d1f3f 100%);
+            border-left: 3px solid #8b7355;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            transform: translateX(280px);
+            transition: transform 0.3s ease;
+            z-index: 200;
+        }
+
+        #sidebar.open {
+            transform: translateX(0);
+        }
+
+        #sidebar-toggle {
+            position: absolute;
+            right: 10px;
+            top: 12px;
+            width: 40px;
+            height: 40px;
+            border: 2px solid #8b7355;
+            background: linear-gradient(135deg, #2d1f3f 0%, #1a1429 100%);
+            color: #d4af37;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 201;
+        }
+
+        #sidebar-toggle:hover {
+            border-color: #d4af37;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+
+        #sidebar-header {
+            padding: 15px;
+            border-bottom: 2px solid #8b7355;
+            font-size: 14px;
+            color: #d4af37;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+
+        #annotations-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        #annotations-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #annotations-list::-webkit-scrollbar-track {
+            background: #1a1429;
+        }
+
+        #annotations-list::-webkit-scrollbar-thumb {
+            background: #8b7355;
+            border-radius: 3px;
+        }
+
+        #annotations-list::-webkit-scrollbar-thumb:hover {
+            background: #b8960f;
+        }
+
+        .annotation-item {
+            background: linear-gradient(135deg, #2d1f3f 0%, #1a1429 100%);
+            border: 1px solid #8b7355;
+            border-radius: 3px;
+            padding: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            color: #9d8764;
+        }
+
+        .annotation-item:hover {
+            border-color: #d4af37;
+            box-shadow: 0 0 8px rgba(212, 175, 55, 0.2);
+        }
+
+        .annotation-item.selected {
+            background: linear-gradient(135deg, #d4af37 0%, #b8960f 100%);
+            color: #1a1429;
+            border-color: #d4af37;
+        }
+
+        .annotation-item-type {
+            font-weight: bold;
+            color: #d4af37;
+            margin-bottom: 4px;
+        }
+
+        .annotation-item-details {
+            font-size: 11px;
+            color: #7d6f54;
+            margin-top: 4px;
+        }
+
+
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <div class="toolbar-group">
+            <span class="toolbar-label">Tools</span>
+            <button id="tool-pen" class="icon-btn active" title="Pen">✏️</button>
+            <button id="tool-line" class="icon-btn" title="Line">📏</button>
+            <button id="tool-rect" class="icon-btn" title="Rectangle">▭</button>
+            <button id="tool-circle" class="icon-btn" title="Circle">●</button>
+            <button id="tool-text" class="icon-btn" title="Text Label">T</button>
+        </div>
+
+        <div class="toolbar-group">
+            <span class="toolbar-label">Color</span>
+            <input type="color" id="color-picker" class="toolbar-color" value="#ff0000">
+        </div>
+
+        <div class="toolbar-group">
+            <span class="toolbar-label">Size</span>
+            <input type="range" id="brush-size" min="1" max="20" value="3" style="width: 120px; accent-color: #d4af37;">
+            <span class="toolbar-label" id="size-value" style="margin-left: 5px;">3px</span>
+        </div>
+
+        <div class="toolbar-group">
+            <input type="text" id="text-input" placeholder="Label text..." style="width: 140px; padding: 8px; background: linear-gradient(135deg, #2d1f3f 0%, #1a1429 100%); color: #d4af37; border: 2px solid #8b7355; border-radius: 3px; font-size: 12px; font-family: Georgia, serif;">
+        </div>
+
+        <div class="toolbar-group">
+            <button id="undo-btn" class="icon-btn" title="Undo">↶</button>
+            <button id="delete-btn" class="icon-btn danger" title="Delete Selected">✕</button>
+        </div>
+
+        <div class="toolbar-group" style="margin-left: auto; border-right: none; border-left: 2px solid #8b7355; padding-left: 15px;">
+            <span id="status" style="padding: 5px 10px; background: linear-gradient(135deg, #2d1f3f 0%, #1a1429 100%); border: 1px solid #8b7355; border-radius: 3px; font-size: 11px; color: #9d8764;">Ready</span>
+        </div>
+    </div>
+
+    <div id="map-wrapper">
+        <button id="sidebar-toggle" title="Toggle Annotations List">📋</button>
+        <div id="map-container">
+            <div id="zoomhub-embed">
+                <script src="https://zoomhub.net/PVYn8.js?width=100%&height=100%&border=none"></script>
+            </div>
+            <canvas id="annotation-canvas"></canvas>
+        </div>
+
+        <div id="sidebar">
+            <div id="sidebar-header">Annotations</div>
+            <div id="annotations-list"></div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyBsVxNMoodWncO_gPMHjsb2G_KSPi--Uas",
+            authDomain: "alaria-c1fc7.firebaseapp.com",
+            projectId: "alaria-c1fc7",
+            storageBucket: "alaria-c1fc7.firebasestorage.app",
+            messagingSenderId: "901757045086",
+            appId: "1:901757045086:web:19fa17a73a0fcc1e0e27cf",
+            measurementId: "G-MWG8H88QG7"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const canvas = document.getElementById('annotation-canvas');
+        const ctx = canvas.getContext('2d');
+        let fabricCanvas = new fabric.Canvas('annotation-canvas', {
+            isDrawingMode: true,
+            backgroundColor: 'transparent'
+        });
+
+        const toolButtons = {
+            pen: document.getElementById('tool-pen'),
+            line: document.getElementById('tool-line'),
+            rect: document.getElementById('tool-rect'),
+            circle: document.getElementById('tool-circle'),
+            text: document.getElementById('tool-text')
+        };
+
+        const colorPicker = document.getElementById('color-picker');
+        const brushSize = document.getElementById('brush-size');
+        const sizeValue = document.getElementById('size-value');
+        const textInput = document.getElementById('text-input');
+        const statusDiv = document.getElementById('status');
+        const undoBtn = document.getElementById('undo-btn');
+
+        let isDrawing = false;
+        let startX, startY;
+        let currentTool = 'pen';
+        let history = [];
+        let selectionMode = false;
+
+        // Sidebar toggle
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('sidebar');
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Don't trigger shortcuts if typing in text input
+            if (document.activeElement === textInput) return;
+
+            const shortcuts = {
+                'p': 'pen',
+                'l': 'line',
+                'r': 'rect',
+                'c': 'circle',
+                't': 'text',
+                'z': 'undo',
+                'Delete': 'delete'
+            };
+
+            const key = e.key.toLowerCase();
+            
+            if (shortcuts[key]) {
+                e.preventDefault();
+                
+                if (key === 'z') {
+                    undoBtn.click();
+                } else if (key === 'Delete') {
+                    document.getElementById('delete-btn').click();
+                } else {
+                    // Activate tool
+                    toolButtons[shortcuts[key]].click();
+                }
+            }
+        });
+
+        // Update tool with button clicks
+        Object.entries(toolButtons).forEach(([toolName, button]) => {
+            button.addEventListener('click', () => {
+                currentTool = toolName;
+                
+                // Update active button
+                Object.values(toolButtons).forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                if (currentTool === 'pen') {
+                    fabricCanvas.isDrawingMode = true;
+                    canvas.style.cursor = 'crosshair';
+                } else if (currentTool === 'text') {
+                    fabricCanvas.isDrawingMode = false;
+                    canvas.style.cursor = 'text';
+                } else {
+                    fabricCanvas.isDrawingMode = false;
+                    canvas.style.cursor = 'crosshair';
+                }
+            });
+        });
+
+        // Update color
+        colorPicker.addEventListener('change', (e) => {
+            fabricCanvas.freeDrawingBrush.color = e.target.value;
+        });
+
+        // Update brush size
+        brushSize.addEventListener('input', (e) => {
+            sizeValue.textContent = e.target.value + 'px';
+            fabricCanvas.freeDrawingBrush.width = parseInt(e.target.value);
+        });
+
+        // Resize canvas to fit container
+        function resizeCanvas() {
+            const container = document.getElementById('map-container');
+            canvas.width = container.offsetWidth;
+            canvas.height = container.offsetHeight;
+            fabricCanvas.setWidth(canvas.width);
+            fabricCanvas.setHeight(canvas.height);
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Initialize brush
+        fabricCanvas.freeDrawingBrush.color = colorPicker.value;
+        fabricCanvas.freeDrawingBrush.width = parseInt(brushSize.value);
+
+        // Auto-save after each action
+        function autoSave() {
+            saveAnnotations();
+        }
+
+        // Update annotations list in sidebar
+        function updateAnnotationsList() {
+            const listContainer = document.getElementById('annotations-list');
+            listContainer.innerHTML = '';
+
+            const objects = fabricCanvas.getObjects();
+            
+            objects.forEach((obj, index) => {
+                const item = document.createElement('div');
+                item.className = 'annotation-item';
+                
+                let type = obj.type;
+                let details = '';
+
+                if (obj.type === 'i-text' || obj.type === 'text') {
+                    type = 'Text Label';
+                    details = `"${obj.text.substring(0, 20)}"${obj.text.length > 20 ? '...' : ''}`;
+                } else if (obj.type === 'path') {
+                    type = 'Drawn Path';
+                    details = `${obj.path.length} points`;
+                } else if (obj.type === 'line') {
+                    type = 'Line';
+                    details = 'Straight line';
+                } else if (obj.type === 'rect') {
+                    type = 'Rectangle';
+                    details = `${Math.round(obj.width)}x${Math.round(obj.height)}`;
+                } else if (obj.type === 'circle') {
+                    type = 'Circle';
+                    details = `r: ${Math.round(obj.radius)}`;
+                }
+
+                item.innerHTML = `
+                    <div class="annotation-item-type">${type}</div>
+                    <div class="annotation-item-details">${details}</div>
+                `;
+
+                item.addEventListener('click', () => {
+                    fabricCanvas.setActiveObject(obj);
+                    fabricCanvas.renderAll();
+                    
+                    // Update selected state in list
+                    document.querySelectorAll('.annotation-item').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                });
+
+                listContainer.appendChild(item);
+            });
+        }
+
+        // Hook into fabric canvas to update list and auto-save on changes
+        fabricCanvas.on('object:added', () => {
+            saveHistory();
+            updateAnnotationsList();
+            autoSave();
+        });
+
+        fabricCanvas.on('object:modified', () => {
+            saveHistory();
+            updateAnnotationsList();
+            autoSave();
+        });
+
+        fabricCanvas.on('object:removed', () => {
+            updateAnnotationsList();
+            autoSave();
+        });
+
+        // Canvas mouse events for shapes
+        canvas.addEventListener('mousedown', (e) => {
+            if (currentTool === 'pen') return;
+            if (currentTool === 'text') {
+                handleTextInput(e);
+                return;
+            }
+
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+            saveHistory();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing || currentTool === 'pen' || currentTool === 'text') return;
+
+            const rect = canvas.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+
+            redrawCanvas();
+
+            ctx.strokeStyle = colorPicker.value;
+            ctx.fillStyle = 'transparent';
+            ctx.lineWidth = parseInt(brushSize.value);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            if (currentTool === 'line') {
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(currentX, currentY);
+                ctx.stroke();
+            } else if (currentTool === 'rect') {
+                const width = currentX - startX;
+                const height = currentY - startY;
+                ctx.strokeRect(startX, startY, width, height);
+            } else if (currentTool === 'circle') {
+                const radius = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2));
+                ctx.beginPath();
+                ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        function handleTextInput(e) {
+            if (!textInput.value.trim()) {
+                statusDiv.textContent = 'Enter text before placing label';
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const text = new fabric.Text(textInput.value, {
+                left: x,
+                top: y,
+                fontSize: 16,
+                fill: colorPicker.value,
+                fontFamily: 'Arial',
+                editable: true
+            });
+
+            fabricCanvas.add(text);
+            fabricCanvas.renderAll();
+            textInput.value = '';
+            saveHistory();
+        }
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            fabricCanvas.renderAll();
+        }
+
+        function saveHistory() {
+            history.push(fabricCanvas.toJSON());
+            if (history.length > 50) history.shift();
+        }
+
+        undoBtn.addEventListener('click', () => {
+            if (history.length > 1) {
+                history.pop();
+                fabricCanvas.loadFromJSON(history[history.length - 1], () => {
+                    fabricCanvas.renderAll();
+                    statusDiv.textContent = 'Undo successful';
+                });
+            }
+        });
+
+        document.getElementById('delete-btn').addEventListener('click', () => {
+            const activeObject = fabricCanvas.getActiveObject();
+            if (activeObject) {
+                fabricCanvas.remove(activeObject);
+                fabricCanvas.renderAll();
+                saveHistory();
+                statusDiv.textContent = 'Annotation deleted';
+            } else {
+                statusDiv.textContent = 'Select an annotation to delete';
+            }
+        });
+
+        // Auto-save function
+        async function saveAnnotations() {
+            try {
+                const annotationData = fabricCanvas.toJSON();
+                await db.collection('alaria-map').doc('annotations').set({
+                    data: annotationData,
+                    timestamp: new Date(),
+                    version: 1
+                });
+            } catch (error) {
+                console.error('Auto-save error:', error);
+            }
+        }
+
+        // Load annotations on startup
+        async function loadAnnotations() {
+            try {
+                const doc = await db.collection('alaria-map').doc('annotations').get();
+                if (doc.exists && doc.data().data) {
+                    fabricCanvas.loadFromJSON(doc.data().data, () => {
+                        fabricCanvas.renderAll();
+                        statusDiv.textContent = 'Annotations loaded';
+                    });
+                    history = [doc.data().data];
+                } else {
+                    statusDiv.textContent = 'No saved annotations';
+                }
+            } catch (error) {
+                statusDiv.textContent = 'Load failed: ' + error.message;
+                console.error('Load error:', error);
+            }
+        }
+
+        // Load annotations when page loads
+        setTimeout(loadAnnotations, 1000);
+    </script>
+</body>
+</html>
