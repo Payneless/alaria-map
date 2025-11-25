@@ -449,22 +449,33 @@
 
         // Initialize Firebase when available
         let db = null;
+        let firebaseInitAttempts = 0;
+        const MAX_FIREBASE_ATTEMPTS = 50; // 5 seconds max
 
         function initializeFirebase() {
+            firebaseInitAttempts++;
+
             if (typeof firebase === 'undefined') {
-                console.error('Firebase not loaded yet, retrying...');
-                setTimeout(initializeFirebase, 100);
+                if (firebaseInitAttempts < MAX_FIREBASE_ATTEMPTS) {
+                    console.log(`Firebase loading... (attempt ${firebaseInitAttempts}/${MAX_FIREBASE_ATTEMPTS})`);
+                    setTimeout(initializeFirebase, 100);
+                } else {
+                    console.error('Firebase failed to load after 5 seconds. Continuing without sync.');
+                    statusDiv.textContent = 'Warning: Firebase unavailable - annotations may not sync';
+                }
                 return;
             }
 
             try {
                 if (!firebase.apps.length) {
                     firebase.initializeApp(firebaseConfig);
+                    console.log('Firebase app initialized');
                 }
                 db = firebase.firestore();
-                console.log('Firebase initialized successfully');
+                console.log('Firebase Firestore initialized successfully');
             } catch (error) {
                 console.error('Firebase initialization error:', error);
+                statusDiv.textContent = 'Error: Firebase initialization failed';
             }
         }
 
@@ -1220,12 +1231,22 @@
         }
 
         // Run when DOM is fully loaded
+        function runApp() {
+            console.log('Running app initialization...');
+
+            // Give Firebase a moment to load, but don't block on it
+            const appInitDelay = setTimeout(() => {
+                console.log('Starting app (Firebase may not be ready yet)');
+                startApp();
+            }, 500);
+        }
+
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', startApp);
+            document.addEventListener('DOMContentLoaded', runApp);
             console.log('Waiting for DOMContentLoaded...');
         } else {
-            startApp();
-            console.log('DOM already loaded, running startApp');
+            runApp();
+            console.log('DOM already loaded, running app');
         }
     </script>
 </body>
