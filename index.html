@@ -364,30 +364,32 @@
         let selectionMode = false;
         let drawMode = true; // Start in draw mode
 
-        // Mode toggle
-        const modeToggle = document.getElementById('mode-toggle');
-        console.log('Mode toggle button:', modeToggle); // Debug
-        
-        if (modeToggle) {
-            modeToggle.addEventListener('click', () => {
-                drawMode = !drawMode;
-                const canvasEl = document.getElementById('annotation-canvas');
-                
-                if (drawMode) {
-                    // Draw mode
-                    modeToggle.textContent = '✏️ Draw';
-                    modeToggle.classList.remove('nav-mode');
-                    canvasEl.classList.remove('disabled');
-                    statusDiv.textContent = 'Draw mode active';
-                } else {
-                    // Navigation mode
-                    modeToggle.textContent = '🗺️ Navigate';
-                    modeToggle.classList.add('nav-mode');
-                    canvasEl.classList.add('disabled');
-                    statusDiv.textContent = 'Navigation mode - pan the map';
-                }
-            });
-        }
+        // Mode toggle - moved after other initializations
+        setTimeout(() => {
+            const modeToggle = document.getElementById('mode-toggle');
+            console.log('Mode toggle button:', modeToggle); // Debug
+            
+            if (modeToggle) {
+                modeToggle.addEventListener('click', () => {
+                    drawMode = !drawMode;
+                    const canvasEl = document.getElementById('annotation-canvas');
+                    
+                    if (drawMode) {
+                        // Draw mode
+                        modeToggle.textContent = '✏️ Draw';
+                        modeToggle.classList.remove('nav-mode');
+                        canvasEl.classList.remove('disabled');
+                        statusDiv.textContent = 'Draw mode active';
+                    } else {
+                        // Navigation mode
+                        modeToggle.textContent = '🗺️ Navigate';
+                        modeToggle.classList.add('nav-mode');
+                        canvasEl.classList.add('disabled');
+                        statusDiv.textContent = 'Navigation mode - pan the map';
+                    }
+                });
+            }
+        }, 100);
 
         // Sidebar toggle
         const sidebarToggle = document.getElementById('sidebar-toggle');
