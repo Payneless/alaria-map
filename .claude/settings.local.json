@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nImplement multi-user collaborative annotation support\n\n- Add player name modal on page load for session identification\n- Implement real-time Firestore synchronization using onSnapshot listeners\n- Support session-based annotation storage with URL parameters (?session=name)\n- Add presence tracking showing active players in toolbar\n- Update data structure: annotations stored per-session with creator attribution\n- Show player names in sidebar annotation list\n- Implement per-annotation Firestore storage instead of single shared document\n- Add player presence management with automatic cleanup on disconnect\n- Enable concurrent multi-user editing with conflict resolution via Firestore timestamps\n\nThis enables true collaborative D&D campaign map annotation where multiple players\ncan view and edit annotations in real-time with proper attribution.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit -m \"$(cat <<''EOF''\nUpdate README with comprehensive multi-user documentation\n\n- Add full feature overview and getting started guide\n- Document session-based URL parameters for campaign separation\n- Explain data structure and real-time synchronization\n- Add keyboard shortcuts reference\n- Include troubleshooting and customization instructions\n- Add D&D campaign best practices\n- Document GitHub Pages deployment process\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
