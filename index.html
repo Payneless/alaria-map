@@ -802,41 +802,63 @@
             const input = document.getElementById('player-name-input');
             const btn = document.getElementById('player-name-btn');
 
+            if (!modal) {
+                console.error('Player modal element not found!');
+                return;
+            }
+
+            console.log('Initializing player modal...');
+
             // Auto-focus input
-            input.focus();
+            if (input) {
+                input.focus();
+            } else {
+                console.error('Player name input not found!');
+            }
 
             // Handle button click
-            btn.addEventListener('click', () => {
-                if (input.value.trim()) {
-                    playerName = input.value.trim();
-                    playerId = generatePlayerId();
-                    sessionId = getSessionId();
-                    modal.classList.add('hidden');
-                    initializeSession();
-                } else {
-                    input.style.borderColor = '#ff4444';
-                }
-            });
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    if (input && input.value.trim()) {
+                        playerName = input.value.trim();
+                        playerId = generatePlayerId();
+                        sessionId = getSessionId();
+                        console.log('Player joined:', { playerName, sessionId, playerId });
+                        modal.classList.add('hidden');
+                        initializeSession();
+                    } else {
+                        if (input) input.style.borderColor = '#ff4444';
+                    }
+                });
+            } else {
+                console.error('Player name button not found!');
+            }
 
             // Handle Enter key
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    btn.click();
-                }
-            });
+            if (input) {
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        if (btn) btn.click();
+                    }
+                });
+            }
         }
 
         // Initialize the collaborative session
         function initializeSession() {
+            console.log('Initializing session...');
             statusDiv.textContent = `Joined as ${playerName}`;
 
             // Register player presence
+            console.log('Registering player presence...');
             registerPlayerPresence();
 
             // Set up real-time annotation listener
+            console.log('Setting up annotation listener...');
             setupAnnotationListener();
 
             // Set up player presence listener
+            console.log('Setting up player presence listener...');
             setupPlayerPresenceListener();
 
             // Clean up on page unload
