@@ -26,26 +26,32 @@
         #toolbar {
             background: linear-gradient(to right, #1a1429 0%, #2d1f3f 100%);
             border-bottom: 3px solid #8b7355;
-            padding: 12px 20px;
+            padding: 12px 15px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
             flex-wrap: nowrap;
             overflow-x: auto;
             min-height: 60px;
+            justify-content: flex-start;
         }
 
         .toolbar-group {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             border-right: 2px solid #8b7355;
-            padding-right: 15px;
+            padding-right: 12px;
+            flex-shrink: 0;
         }
 
         .toolbar-group:last-child {
             border-right: none;
+            margin-left: auto;
+            padding-right: 0;
+            padding-left: 12px;
+            border-left: 2px solid #8b7355;
         }
 
         .toolbar-label {
@@ -293,8 +299,8 @@
             <button id="delete-btn" class="icon-btn danger" title="Delete Selected">✕</button>
         </div>
 
-        <div class="toolbar-group" style="margin-left: auto; border-right: none; border-left: 2px solid #8b7355; padding-left: 15px;">
-            <span id="status" style="padding: 5px 10px; background: linear-gradient(135deg, #2d1f3f 0%, #1a1429 100%); border: 1px solid #8b7355; border-radius: 3px; font-size: 11px; color: #9d8764;">Ready</span>
+        <div class="toolbar-group">
+            <span id="status" style="padding: 5px 10px; background: linear-gradient(135deg, #2d1f3f 0%, #1a1429 100%); border: 1px solid #8b7355; border-radius: 3px; font-size: 11px; color: #9d8764; white-space: nowrap;">Ready</span>
         </div>
     </div>
 
@@ -360,24 +366,28 @@
 
         // Mode toggle
         const modeToggle = document.getElementById('mode-toggle');
-        modeToggle.addEventListener('click', () => {
-            drawMode = !drawMode;
-            const canvasEl = document.getElementById('annotation-canvas');
-            
-            if (drawMode) {
-                // Draw mode
-                modeToggle.textContent = '✏️ Draw';
-                modeToggle.classList.remove('nav-mode');
-                canvasEl.classList.remove('disabled');
-                statusDiv.textContent = 'Draw mode active';
-            } else {
-                // Navigation mode
-                modeToggle.textContent = '🗺️ Navigate';
-                modeToggle.classList.add('nav-mode');
-                canvasEl.classList.add('disabled');
-                statusDiv.textContent = 'Navigation mode - pan the map';
-            }
-        });
+        console.log('Mode toggle button:', modeToggle); // Debug
+        
+        if (modeToggle) {
+            modeToggle.addEventListener('click', () => {
+                drawMode = !drawMode;
+                const canvasEl = document.getElementById('annotation-canvas');
+                
+                if (drawMode) {
+                    // Draw mode
+                    modeToggle.textContent = '✏️ Draw';
+                    modeToggle.classList.remove('nav-mode');
+                    canvasEl.classList.remove('disabled');
+                    statusDiv.textContent = 'Draw mode active';
+                } else {
+                    // Navigation mode
+                    modeToggle.textContent = '🗺️ Navigate';
+                    modeToggle.classList.add('nav-mode');
+                    canvasEl.classList.add('disabled');
+                    statusDiv.textContent = 'Navigation mode - pan the map';
+                }
+            });
+        }
 
         // Sidebar toggle
         const sidebarToggle = document.getElementById('sidebar-toggle');
