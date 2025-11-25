@@ -849,6 +849,10 @@
             console.log('Initializing session...');
             statusDiv.textContent = `Joined as ${playerName}`;
 
+            // Enable tools now that player has joined
+            enableTools();
+            console.log('Tools enabled for player');
+
             // Register player presence
             console.log('Registering player presence...');
             registerPlayerPresence();
@@ -1156,13 +1160,59 @@
             updateAnnotationsList();
         });
 
-        // Initialize the app when Firebase is ready
-        function startApp() {
-            if (db === null) {
-                setTimeout(startApp, 100);
-                return;
+        // Disable all tools until player joins
+        function disableTools() {
+            Object.values(toolButtons).forEach(btn => {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            });
+            document.getElementById('color-picker').disabled = true;
+            document.getElementById('brush-size').disabled = true;
+            document.getElementById('text-input').disabled = true;
+            document.getElementById('delete-btn').disabled = true;
+            document.getElementById('undo-btn').disabled = true;
+            document.getElementById('mode-toggle').disabled = true;
+        }
+
+        function enableTools() {
+            Object.values(toolButtons).forEach(btn => {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            });
+            document.getElementById('color-picker').disabled = false;
+            document.getElementById('brush-size').disabled = false;
+            document.getElementById('text-input').disabled = false;
+            document.getElementById('delete-btn').disabled = false;
+            document.getElementById('undo-btn').disabled = false;
+            document.getElementById('mode-toggle').disabled = false;
+        }
+
+        // Disable tools initially
+        window.addEventListener('load', () => {
+            disableTools();
+            console.log('Page loaded, tools disabled until player joins');
+
+            // Force show modal
+            const modal = document.getElementById('player-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                console.log('Modal shown');
+
+                // Focus input
+                const input = document.getElementById('player-name-input');
+                if (input) {
+                    setTimeout(() => input.focus(), 100);
+                }
             }
+        });
+
+        // Initialize the app
+        function startApp() {
+            // Don't wait for Firebase, just show the modal
             initializePlayerModal();
+            console.log('startApp() called, modal initialized');
         }
 
         startApp();
