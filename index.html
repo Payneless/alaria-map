@@ -262,10 +262,126 @@
         }
 
 
+        #player-modal {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        #player-modal.hidden {
+            display: none;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1429 0%, #2d1f3f 100%);
+            border: 3px solid #8b7355;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
+            max-width: 400px;
+        }
+
+        .modal-content h1 {
+            color: #d4af37;
+            font-size: 28px;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .modal-content p {
+            color: #9d8764;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #2d1f3f 0%, #1a1429 100%);
+            color: #d4af37;
+            border: 2px solid #8b7355;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: Georgia, serif;
+            box-sizing: border-box;
+        }
+
+        .modal-content input:focus {
+            outline: none;
+            border-color: #d4af37;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+
+        .modal-content button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #d4af37 0%, #b8960f 100%);
+            color: #1a1429;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-content button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+        }
+
+        #active-players {
+            background: linear-gradient(135deg, #1a1429 0%, #2d1f3f 100%);
+            border-bottom: 2px solid #8b7355;
+            padding: 12px 15px;
+            font-size: 12px;
+            color: #9d8764;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .player-badge {
+            display: inline-block;
+            background: rgba(212, 175, 55, 0.2);
+            border: 1px solid #8b7355;
+            color: #d4af37;
+            padding: 4px 8px;
+            border-radius: 3px;
+            margin: 3px;
+            font-size: 11px;
+        }
+
+        .player-badge.current {
+            background: rgba(212, 175, 55, 0.4);
+            border-color: #d4af37;
+            font-weight: bold;
+        }
+
     </style>
 </head>
 <body>
+    <!-- Player Name Modal -->
+    <div id="player-modal">
+        <div class="modal-content">
+            <h1>⚔️ Enter Your Name</h1>
+            <p>Choose your character name for this session</p>
+            <input type="text" id="player-name-input" placeholder="e.g., Aragorn, Legolas, Gimli..." maxlength="20">
+            <button id="player-name-btn">Join Campaign</button>
+        </div>
+    </div>
+
     <div id="toolbar">
+        <div id="active-players"></div>
         <div class="toolbar-group">
             <span class="toolbar-label">Mode</span>
             <button id="mode-toggle" class="icon-btn active" title="Toggle Drawing/Navigation Mode">✏️ Draw</button>
@@ -334,6 +450,14 @@
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+
+        // Multi-user globals
+        let playerName = null;
+        let sessionId = null;
+        let playerId = null;
+        let activePlayersMap = {}; // Track active players
+        let unsubscribeAnnotations = null; // Unsubscribe function for listener
+        let unsubscribePlayers = null; // Unsubscribe function for players listener
 
         const canvas = document.getElementById('annotation-canvas');
         const ctx = canvas.getContext('2d');
@@ -532,24 +656,6 @@
             });
         }
 
-        // Hook into fabric canvas to update list and auto-save on changes
-        fabricCanvas.on('object:added', () => {
-            saveHistory();
-            updateAnnotationsList();
-            autoSave();
-        });
-
-        fabricCanvas.on('object:modified', () => {
-            saveHistory();
-            updateAnnotationsList();
-            autoSave();
-        });
-
-        fabricCanvas.on('object:removed', () => {
-            updateAnnotationsList();
-            autoSave();
-        });
-
         // Canvas mouse events for shapes
         canvas.addEventListener('mousedown', (e) => {
             if (!drawMode) return; // Ignore if not in draw mode
@@ -660,41 +766,338 @@
             }
         });
 
-        // Auto-save function
-        async function saveAnnotations() {
+        // Get session ID from URL or use default
+        function getSessionId() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('session') || 'default-session';
+        }
+
+        // Generate unique player ID
+        function generatePlayerId() {
+            return 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Initialize player name modal
+        function initializePlayerModal() {
+            const modal = document.getElementById('player-modal');
+            const input = document.getElementById('player-name-input');
+            const btn = document.getElementById('player-name-btn');
+
+            // Auto-focus input
+            input.focus();
+
+            // Handle button click
+            btn.addEventListener('click', () => {
+                if (input.value.trim()) {
+                    playerName = input.value.trim();
+                    playerId = generatePlayerId();
+                    sessionId = getSessionId();
+                    modal.classList.add('hidden');
+                    initializeSession();
+                } else {
+                    input.style.borderColor = '#ff4444';
+                }
+            });
+
+            // Handle Enter key
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    btn.click();
+                }
+            });
+        }
+
+        // Initialize the collaborative session
+        function initializeSession() {
+            statusDiv.textContent = `Joined as ${playerName}`;
+
+            // Register player presence
+            registerPlayerPresence();
+
+            // Set up real-time annotation listener
+            setupAnnotationListener();
+
+            // Set up player presence listener
+            setupPlayerPresenceListener();
+
+            // Clean up on page unload
+            window.addEventListener('beforeunload', () => {
+                unregisterPlayerPresence();
+            });
+        }
+
+        // Register player in the session
+        async function registerPlayerPresence() {
             try {
-                const annotationData = fabricCanvas.toJSON();
-                await db.collection('alaria-map').doc('annotations').set({
-                    data: annotationData,
-                    timestamp: new Date(),
-                    version: 1
+                const playerDoc = db.collection('alaria-map')
+                    .doc(sessionId)
+                    .collection('players')
+                    .doc(playerId);
+
+                await playerDoc.set({
+                    name: playerName,
+                    joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastActive: firebase.firestore.FieldValue.serverTimestamp()
                 });
+
+                // Update last active every 30 seconds
+                setInterval(async () => {
+                    try {
+                        await playerDoc.update({
+                            lastActive: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    } catch (error) {
+                        console.error('Error updating presence:', error);
+                    }
+                }, 30000);
             } catch (error) {
-                console.error('Auto-save error:', error);
+                console.error('Error registering player:', error);
             }
         }
 
-        // Load annotations on startup
-        async function loadAnnotations() {
+        // Unregister player when leaving
+        async function unregisterPlayerPresence() {
             try {
-                const doc = await db.collection('alaria-map').doc('annotations').get();
-                if (doc.exists && doc.data().data) {
-                    fabricCanvas.loadFromJSON(doc.data().data, () => {
-                        fabricCanvas.renderAll();
-                        statusDiv.textContent = 'Annotations loaded';
-                    });
-                    history = [doc.data().data];
-                } else {
-                    statusDiv.textContent = 'No saved annotations';
+                if (playerId && sessionId) {
+                    await db.collection('alaria-map')
+                        .doc(sessionId)
+                        .collection('players')
+                        .doc(playerId)
+                        .delete();
                 }
             } catch (error) {
-                statusDiv.textContent = 'Load failed: ' + error.message;
-                console.error('Load error:', error);
+                console.error('Error unregistering player:', error);
             }
         }
 
-        // Load annotations when page loads
-        setTimeout(loadAnnotations, 1000);
+        // Set up real-time listener for annotations
+        function setupAnnotationListener() {
+            unsubscribeAnnotations = db.collection('alaria-map')
+                .doc(sessionId)
+                .collection('annotations')
+                .orderBy('timestamp', 'desc')
+                .onSnapshot(
+                    (snapshot) => {
+                        // Load annotations from snapshot
+                        const annotationsData = {};
+                        snapshot.forEach((doc) => {
+                            annotationsData[doc.id] = doc.data();
+                        });
+
+                        // Rebuild canvas from all annotations
+                        rebuildCanvasFromAnnotations(annotationsData);
+                    },
+                    (error) => {
+                        console.error('Error listening to annotations:', error);
+                        statusDiv.textContent = 'Sync error: ' + error.message;
+                    }
+                );
+        }
+
+        // Set up listener for active players
+        function setupPlayerPresenceListener() {
+            unsubscribePlayers = db.collection('alaria-map')
+                .doc(sessionId)
+                .collection('players')
+                .onSnapshot(
+                    (snapshot) => {
+                        activePlayersMap = {};
+                        snapshot.forEach((doc) => {
+                            const data = doc.data();
+                            activePlayersMap[doc.id] = {
+                                name: data.name,
+                                joinedAt: data.joinedAt,
+                                lastActive: data.lastActive
+                            };
+                        });
+                        updateActivePlayersList();
+                    },
+                    (error) => {
+                        console.error('Error listening to players:', error);
+                    }
+                );
+        }
+
+        // Update the active players display
+        function updateActivePlayersList() {
+            const container = document.getElementById('active-players');
+            container.innerHTML = '<strong>🎭 Players:</strong> ';
+
+            Object.entries(activePlayersMap).forEach(([id, player]) => {
+                const badge = document.createElement('span');
+                badge.className = 'player-badge';
+                if (id === playerId) {
+                    badge.classList.add('current');
+                    badge.textContent = player.name + ' (You)';
+                } else {
+                    badge.textContent = player.name;
+                }
+                container.appendChild(badge);
+            });
+        }
+
+        // Rebuild canvas from all annotations in database
+        function rebuildCanvasFromAnnotations(annotationsData) {
+            // This approach: load all objects and recreate fabric objects
+            fabricCanvas.clear();
+
+            Object.entries(annotationsData)
+                .sort((a, b) => a[1].timestamp - b[1].timestamp)
+                .forEach(([id, data]) => {
+                    try {
+                        // Recreate fabric object from saved data
+                        const objectData = data.object;
+
+                        // Create appropriate fabric object based on type
+                        let fabricObject = null;
+                        if (objectData.type === 'path') {
+                            fabricObject = new fabric.Path(objectData.path, objectData);
+                        } else if (objectData.type === 'line') {
+                            fabricObject = new fabric.Line(
+                                [objectData.x1, objectData.y1, objectData.x2, objectData.y2],
+                                objectData
+                            );
+                        } else if (objectData.type === 'rect') {
+                            fabricObject = new fabric.Rect(objectData);
+                        } else if (objectData.type === 'circle') {
+                            fabricObject = new fabric.Circle(objectData);
+                        } else if (objectData.type === 'i-text' || objectData.type === 'text') {
+                            fabricObject = new fabric.Text(objectData.text, objectData);
+                        }
+
+                        if (fabricObject) {
+                            // Add creator info to object
+                            fabricObject._creatorId = data.creator;
+                            fabricObject._annotationId = id;
+                            fabricObject._timestamp = data.timestamp;
+                            fabricCanvas.add(fabricObject);
+                        }
+                    } catch (error) {
+                        console.error('Error recreating annotation:', error);
+                    }
+                });
+
+            fabricCanvas.renderAll();
+            updateAnnotationsList();
+        }
+
+        // Override auto-save to save individual annotations instead
+        function autoSave() {
+            // This is now called after adding/modifying objects
+            // We'll override this function to save per-object
+        }
+
+        // Save annotation to Firestore
+        async function saveAnnotationToFirestore(fabricObject) {
+            try {
+                if (!fabricObject._annotationId) {
+                    fabricObject._annotationId = 'ann_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                }
+
+                const annotationRef = db.collection('alaria-map')
+                    .doc(sessionId)
+                    .collection('annotations')
+                    .doc(fabricObject._annotationId);
+
+                // Convert fabric object to serializable format
+                const objectData = fabricObject.toObject();
+
+                await annotationRef.set({
+                    object: objectData,
+                    creator: playerName,
+                    creatorId: playerId,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    type: fabricObject.type
+                });
+            } catch (error) {
+                console.error('Error saving annotation:', error);
+                statusDiv.textContent = 'Error saving annotation';
+            }
+        }
+
+        // Update annotations list to show creator
+        function updateAnnotationsList() {
+            const listContainer = document.getElementById('annotations-list');
+            listContainer.innerHTML = '';
+
+            const objects = fabricCanvas.getObjects();
+
+            objects.forEach((obj, index) => {
+                const item = document.createElement('div');
+                item.className = 'annotation-item';
+
+                let type = obj.type;
+                let details = '';
+                let creator = obj._creatorId ?
+                    (Object.values(activePlayersMap).find(p => db.collection('alaria-map').doc(sessionId).collection('players').doc(obj._creatorId))?.name || 'Unknown') :
+                    'You';
+
+                if (obj.type === 'i-text' || obj.type === 'text') {
+                    type = 'Text Label';
+                    details = `"${obj.text.substring(0, 20)}"${obj.text.length > 20 ? '...' : ''}`;
+                } else if (obj.type === 'path') {
+                    type = 'Drawn Path';
+                    details = `${obj.path.length} points`;
+                } else if (obj.type === 'line') {
+                    type = 'Line';
+                    details = 'Straight line';
+                } else if (obj.type === 'rect') {
+                    type = 'Rectangle';
+                    details = `${Math.round(obj.width)}x${Math.round(obj.height)}`;
+                } else if (obj.type === 'circle') {
+                    type = 'Circle';
+                    details = `r: ${Math.round(obj.radius)}`;
+                }
+
+                item.innerHTML = `
+                    <div class="annotation-item-type">${type}</div>
+                    <div class="annotation-item-details">${details}</div>
+                    <div style="font-size: 10px; color: #8b7355; margin-top: 4px;">by ${creator}</div>
+                `;
+
+                item.addEventListener('click', () => {
+                    fabricCanvas.setActiveObject(obj);
+                    fabricCanvas.renderAll();
+
+                    // Update selected state in list
+                    document.querySelectorAll('.annotation-item').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                });
+
+                listContainer.appendChild(item);
+            });
+        }
+
+        // Update fabric canvas hooks to save to Firestore
+        fabricCanvas.on('object:added', (e) => {
+            saveAnnotationToFirestore(e.target);
+            saveHistory();
+            updateAnnotationsList();
+        });
+
+        fabricCanvas.on('object:modified', (e) => {
+            saveAnnotationToFirestore(e.target);
+            saveHistory();
+            updateAnnotationsList();
+        });
+
+        fabricCanvas.on('object:removed', async (e) => {
+            try {
+                if (e.target._annotationId) {
+                    await db.collection('alaria-map')
+                        .doc(sessionId)
+                        .collection('annotations')
+                        .doc(e.target._annotationId)
+                        .delete();
+                }
+            } catch (error) {
+                console.error('Error deleting annotation:', error);
+            }
+            updateAnnotationsList();
+        });
+
+        // Initialize the app
+        initializePlayerModal();
     </script>
 </body>
 </html>
