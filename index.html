@@ -1189,33 +1189,44 @@
             document.getElementById('mode-toggle').disabled = false;
         }
 
-        // Disable tools initially
-        window.addEventListener('load', () => {
-            disableTools();
-            console.log('Page loaded, tools disabled until player joins');
+        // Initialize the app when DOM is ready
+        function startApp() {
+            console.log('startApp() called');
 
-            // Force show modal
+            // Disable tools until player joins
+            disableTools();
+            console.log('Tools disabled until player joins');
+
+            // Ensure modal is visible
             const modal = document.getElementById('player-modal');
             if (modal) {
                 modal.classList.remove('hidden');
-                console.log('Modal shown');
-
-                // Focus input
-                const input = document.getElementById('player-name-input');
-                if (input) {
-                    setTimeout(() => input.focus(), 100);
-                }
+                modal.style.display = 'flex';
+                console.log('Modal visibility ensured');
+            } else {
+                console.error('Player modal element not found in DOM');
             }
-        });
 
-        // Initialize the app
-        function startApp() {
-            // Don't wait for Firebase, just show the modal
+            // Initialize modal interactions
             initializePlayerModal();
-            console.log('startApp() called, modal initialized');
+            console.log('Player modal initialized');
+
+            // Focus input
+            const input = document.getElementById('player-name-input');
+            if (input) {
+                input.focus();
+                console.log('Input focused');
+            }
         }
 
-        startApp();
+        // Run when DOM is fully loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startApp);
+            console.log('Waiting for DOMContentLoaded...');
+        } else {
+            startApp();
+            console.log('DOM already loaded, running startApp');
+        }
     </script>
 </body>
 </html>
